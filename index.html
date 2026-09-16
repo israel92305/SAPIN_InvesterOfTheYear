@@ -642,7 +642,7 @@ function doLogin(){
   const name=ni?(ni.value||"").trim():"";
   const ok=state.role==="judge"?CONFIG.judgeCodes.includes(v)
          :state.role==="attendee"?CONFIG.attendeeCodes.includes(v)
-         :v===CONFIG.organiserCode;
+         :v===CONFIG.organiserCode.toUpperCase();
   if(!ok){ state.error="That code wasn't recognised. Check it and try again."; document.getElementById("err").textContent=state.error; return; }
   if(ni && !name){ state.error="Please enter your name so we know who's voting."; document.getElementById("err").textContent=state.error; return; }
   state.code=v;
