@@ -287,7 +287,7 @@ const CONFIG = {
 
   // Leave "" for on-device voting (single kiosk / testing). Set to a Google
   // Apps Script web-app URL to tally every phone into one Google Sheet.
-  webhookUrl: "",
+  webhookUrl: "https://script.google.com/macros/s/AKfycbyaNIiQpYe9oHYvzeh8mD9MGNMasQZAfHSIV0gSJGYhSSGb2Y7N1OnF6c24qm0PPcdfaQ/exec",
 
   event: {
     theme:"Where Credibility Meets Opportunity",
@@ -472,9 +472,16 @@ function avatar(f,cls){
 
 function voterId(){
   const code = state.code || store.get("ioty_code");
-  // A personal code identifies the person on any device.
+  // A personal (non-shared) code identifies the person on any device.
   if(code && !CONFIG.sharedCodes.includes(code)) return "code:"+code;
-  // Shared code: fall back to a per-device id so each phone still counts once.
+  // Shared code: identify by the name they entered at login, so different
+  // people using the same password are still counted as different voters
+  // (and the organiser can see who cast each vote), no matter which
+  // device or browser they use.
+  const name=(state.voterName||"").trim().toLowerCase().replace(/\s+/g," ");
+  if(name) return "name:"+state.role+":"+name;
+  // Fallback (shouldn't normally happen, since name is required at login):
+  // per-device id so at least this one phone only counts once.
   let v=store.get("ioty_voter");
   if(!v){ v = "dev:"+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
     store.set("ioty_voter", v); }
@@ -493,7 +500,7 @@ function recordVote(categoryId,finalistId){
 
   // central tally: one row per voter per category, last choice wins
   if(CONFIG.webhookUrl){
-    const payload={voter:voterId(),role:state.role||"guest",category:categoryId,
+    const payload={voter:voterId(),voterName:state.voterName||"",role:state.role||"guest",category:categoryId,
                    finalist:finalistId,previous:previous,ts:Date.now()};
     const send=()=>fetch(CONFIG.webhookUrl,{method:"POST",mode:"no-cors",
       headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
@@ -601,29 +608,42 @@ function renderRole(){
 /* ----- login ----- */
 function renderLogin(){
   const label=state.role==="judge"?"Judge access code":state.role==="contestant"?"Contestant access code":"Organiser code";
+  const needsName=state.role!=="organiser";
+  const nameField=needsName?`
+    <div class="field">
+      <label for="voterName">Your name</label>
+      <input id="voterName" type="text" autocomplete="off" placeholder="e.g. Thandiwe Nkosi">
+    </div>`:"";
   app.innerHTML=`
   <section class="page panel">
     <button class="back" data-act="home">← Back</button>
     <p class="eyebrow"><span class="rule"></span> ${state.role} access</p>
     <h1 class="display" style="font-size:36px">Enter your code</h1>
-    <p class="muted" style="margin-top:8px">Your code was shared with you ahead of the event.</p>
+    <p class="muted" style="margin-top:8px">Your code was shared with you ahead of the event.${needsName?" Everyone uses the same code, so please add your name too — this is how we make sure each person's vote is only counted once and the organiser can tell who voted.":""}</p>
     <div class="field">
       <label for="code">${label}</label>
       <input id="code" type="text" autocomplete="off" autocapitalize="characters" placeholder="Type your code">
     </div>
+    ${nameField}
     <button class="btn block" data-act="login">Continue</button>
     <div class="err" id="err">${state.error||""}</div>
   </section>`;
   const i=document.getElementById("code"); i.focus();
   i.addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+  const ni=document.getElementById("voterName");
+  if(ni) ni.addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
 }
 function doLogin(){
   const v=(document.getElementById("code").value||"").trim();
+  const ni=document.getElementById("voterName");
+  const name=ni?(ni.value||"").trim():"";
   const ok=state.role==="judge"?CONFIG.judgeCodes.includes(v)
          :state.role==="contestant"?CONFIG.contestantCodes.includes(v)
          :v===CONFIG.organiserCode;
   if(!ok){ state.error="That code wasn't recognised. Check it and try again."; document.getElementById("err").textContent=state.error; return; }
+  if(ni && !name){ state.error="Please enter your name so we know who's voting."; document.getElementById("err").textContent=state.error; return; }
   state.code=v.toUpperCase();
+  state.voterName=name;
   store.set("ioty_role",state.role);
   store.set("ioty_code",state.code);
   go(state.role==="organiser"?"results":"dashboard");
@@ -739,6 +759,10 @@ function renderVote(){
     <h1 class="display" style="font-size:34px">Who should win?</h1>
     <p class="muted" style="margin-top:8px">Pick one finalist. You can change your choice any time before voting closes.</p>
     <div style="margin-top:24px">${opts}</div>
+    <div id="voteSelection" class="notice hidden" style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin:18px 0">
+      <span>Voting for: <b id="voteSelectionName" style="color:var(--navy)"></b></span>
+      <button class="btn ghost" type="button" data-act="clearvote" style="padding:8px 14px;font-size:13px">Clear selection</button>
+    </div>
     <button class="btn gold block" id="submitVote" data-act="submitvote" disabled>Submit vote</button>
   </section>`;
 }
@@ -835,6 +859,17 @@ document.addEventListener("click",e=>{
     pending=el.dataset.id;
     document.querySelectorAll(".voteopt").forEach(o=>o.classList.toggle("sel",o.dataset.id===pending));
     const b=document.getElementById("submitVote"); if(b) b.disabled=false;
+    const f=FINALISTS[pending];
+    const sel=document.getElementById("voteSelection"), nm=document.getElementById("voteSelectionName");
+    if(sel&&nm&&f){ nm.textContent=f.name; sel.classList.remove("hidden"); }
+    if(b) b.textContent = f ? `Submit vote for ${f.name}` : "Submit vote";
+  }
+  else if(a==="clearvote"){
+    pending=null;
+    document.querySelectorAll(".voteopt").forEach(o=>o.classList.remove("sel"));
+    const b=document.getElementById("submitVote"); if(b){ b.disabled=true; b.textContent="Submit vote"; }
+    const sel=document.getElementById("voteSelection");
+    if(sel) sel.classList.add("hidden");
   }
   else if(a==="submitvote"){ if(!pending) return; recordVote(state.category,pending); go("confirm",{finalistId:pending}); }
   else if(a==="zoom"){ openZoom(el.getAttribute("src")); }
@@ -861,11 +896,18 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":
    8. BOOT
    ================================================================ */
 (function(){
-  const r=store.get("ioty_role");
-  if(r==="organiser"){ state.role="organiser"; state.view="results"; }
-  else if(r){ state.role=r; state.code=store.get("ioty_code")||null; state.view="dashboard"; }
+  // Always land on the cover/role page first, every time the app is opened.
+  // (Signing in still works the same once someone picks a role below.)
   render();
 })();
+
+// Auto-refresh the live tally while the organiser is looking at results,
+// so votes update on their own without needing a manual "Refresh" tap.
+setInterval(()=>{
+  if(state.view==="results" && CONFIG.webhookUrl){
+    fetchLiveTally(d=>{ if(d&&d.tally){ state.liveTally=d; render(); } });
+  }
+},15000);
 </script>
 </body>
 </html>
