@@ -282,7 +282,7 @@ const CONFIG = {
   // from this list: then one person = one vote, on whatever phone they use.
   judgeCodes: ["JUDGE1-2026","JUDGE2-2026","JUDGE3-2026","JUDGE4-2026","JUDGE5-2026"],
   sharedCodes: ["VOTE-2026"],
-  contestantCodes: ["VOTE-2026"],
+  attendeeCodes: ["VOTE-2026"],
   organiserCode:   "ORGANISER-2026",
 
   // Leave "" for on-device voting (single kiosk / testing). Set to a Google
@@ -556,7 +556,7 @@ function renderChrome(){
   document.querySelector(".wordmark .tro").innerHTML = `<img class="tb-logo" src="${ASSETS.logo_ioty}" alt="Investor of the Year Awards">`;
   document.getElementById("wm").innerHTML = "";
   if(!state.role||state.view==="role"||state.view==="login"){ topnav.innerHTML=""; return; }
-  const who=state.role==="judge"?"Signed in as judge":state.role==="contestant"?"Signed in as contestant":"Organiser view";
+  const who=state.role==="judge"?"Signed in as judge":state.role==="attendee"?"Signed in as attendee":"Organiser view";
   topnav.innerHTML=`<span class="who">${who}</span><button class="linkbtn" data-act="signout">Done, next voter</button>`;
 }
 
@@ -583,11 +583,11 @@ function renderRole(){
         <p>Review each finalist's story, deal and scorecard, then cast one vote per category.</p>
         <span class="rc-go">Enter as a judge</span>
       </button>
-      <button class="rolecard" data-act="pick" data-role="contestant">
+      <button class="rolecard" data-act="pick" data-role="attendee">
         <span class="rc-ey">Finalists</span>
-        <h3>I'm a contestant</h3>
+        <h3>I'm an attendee</h3>
         <p>Meet your fellow finalists across all categories and cast your vote.</p>
-        <span class="rc-go">Enter as a contestant</span>
+        <span class="rc-go">Enter as an attendee</span>
       </button>
     </div>
     <p class="muted" style="margin-top:18px;font-size:13px">Organiser? <a href="#" data-act="pick" data-role="organiser">Open the live results</a></p>
@@ -607,7 +607,7 @@ function renderRole(){
 
 /* ----- login ----- */
 function renderLogin(){
-  const label=state.role==="judge"?"Judge access code":state.role==="contestant"?"Contestant access code":"Organiser code";
+  const label=state.role==="judge"?"Judge access code":state.role==="attendee"?"Attendee access code":"Organiser code";
   const needsName=state.role!=="organiser";
   const nameField=needsName?`
     <div class="field">
@@ -634,15 +634,18 @@ function renderLogin(){
   if(ni) ni.addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
 }
 function doLogin(){
-  const v=(document.getElementById("code").value||"").trim();
+  // Codes are matched case-insensitively so a judge typing "judge1-2026"
+  // or "Judge1-2026" isn't rejected just because of capitalisation --
+  // this was the main reason judges were failing to sign in.
+  const v=(document.getElementById("code").value||"").trim().toUpperCase();
   const ni=document.getElementById("voterName");
   const name=ni?(ni.value||"").trim():"";
   const ok=state.role==="judge"?CONFIG.judgeCodes.includes(v)
-         :state.role==="contestant"?CONFIG.contestantCodes.includes(v)
+         :state.role==="attendee"?CONFIG.attendeeCodes.includes(v)
          :v===CONFIG.organiserCode;
   if(!ok){ state.error="That code wasn't recognised. Check it and try again."; document.getElementById("err").textContent=state.error; return; }
   if(ni && !name){ state.error="Please enter your name so we know who's voting."; document.getElementById("err").textContent=state.error; return; }
-  state.code=v.toUpperCase();
+  state.code=v;
   state.voterName=name;
   store.set("ioty_role",state.role);
   store.set("ioty_code",state.code);
@@ -791,7 +794,7 @@ function renderResults(){
 
   let mode="";
   if(!CONFIG.webhookUrl){
-    mode=`<div class="notice"><b>This device only.</b> Votes are currently counted on each person's own phone, so this screen will not include everyone. Connect your Google Sheet (set <b>webhookUrl</b> in the config) to combine all judges and contestants into one live count.</div>`;
+    mode=`<div class="notice"><b>This device only.</b> Votes are currently counted on each person's own phone, so this screen will not include everyone. Connect your Google Sheet (set <b>webhookUrl</b> in the config) to combine all judges and attendees into one live count.</div>`;
   } else if(!live){
     mode=`<div class="notice">Could not reach the results sheet just now. Showing this device's count. Tap refresh to try again.</div>`;
   }
@@ -800,7 +803,7 @@ function renderResults(){
     ? `<div class="tallybar"><div><b>${live.total}</b><span>votes counted</span></div>
        <div><b>${voters.total}</b><span>people voted</span></div>
        <div><b>${voters.judge||0}</b><span>judges</span></div>
-       <div><b>${voters.contestant||0}</b><span>contestants</span></div></div>`
+       <div><b>${voters.attendee||0}</b><span>attendees</span></div></div>`
     : "";
 
   let html2="", lastGroup=null;
