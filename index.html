@@ -471,8 +471,14 @@ function navSnapshot(){
            category:state.category, code:state.code, voterName:state.voterName };
 }
 function go(view,patch,opts){
+  // Remember exactly where we were scrolled to on the screen we're leaving,
+  // so that coming back to it later (via the back button) can return to
+  // this same spot instead of jumping to the top.
+  if(history.state && history.state.nav){
+    history.replaceState(Object.assign({},history.state,{scroll:window.scrollY}), "", location.hash);
+  }
   Object.assign(state,patch||{}); state.view=view; state.error="";
-  const historyState={ nav:navSnapshot() };
+  const historyState={ nav:navSnapshot(), scroll:0 };
   if(opts&&opts.replace) history.replaceState(historyState,"","#"+view);
   else history.pushState(historyState,"","#"+view);
   render(); window.scrollTo(0,0);
@@ -487,7 +493,12 @@ function goBack(){
 window.addEventListener("popstate",e=>{
   if(e.state&&e.state.nav){ Object.assign(state,e.state.nav); state.error=""; }
   else{ Object.assign(state,{role:null,view:"role",finalistId:null,category:null}); }
-  render(); window.scrollTo(0,0);
+  render();
+  // Going back/forward restores the scroll position that was saved for this
+  // screen (see go()), rather than always resetting to the top. Wait a frame
+  // so layout has settled before we scroll.
+  const y=(e.state&&typeof e.state.scroll==="number")?e.state.scroll:0;
+  requestAnimationFrame(()=>window.scrollTo(0,y));
 });
 
 function avatar(f,cls){
@@ -745,7 +756,7 @@ function renderFinalist(){
   // vote buttons for each category this finalist is in
   const voteBtns=cats.map(c=>{
     const picked=votedCats()[c.id];
-    if(picked===f.id) return `<span class="voted-note" style="margin:4px 10px 4px 0">${check(16)} Your vote · ${escapeHtml(c.name)}</span>
+    if(picked===state.finalistId) return `<span class="voted-note" style="margin:4px 10px 4px 0">${check(16)} Your vote · ${escapeHtml(c.name)}</span>
        <button class="btn ghost" style="margin:4px 10px 4px 0" data-act="startvote" data-cat="${c.id}">Change vote</button>`;
     if(picked) return `<button class="btn ghost" style="margin:4px 10px 4px 0" data-act="startvote" data-cat="${c.id}">Change vote · ${escapeHtml(c.name)}</button>`;
     return `<button class="btn gold" style="margin:4px 10px 4px 0" data-act="startvote" data-cat="${c.id}">Cast your vote · ${escapeHtml(c.name)}</button>`;
@@ -933,7 +944,7 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":
   // (Signing in still works the same once someone picks a role below.)
   // Seed browser history with this first screen so the very first back-press
   // has something real to land on rather than leaving the app.
-  history.replaceState({ nav:navSnapshot() },"","#role");
+  history.replaceState({ nav:navSnapshot(), scroll:0 },"","#role");
   render();
 })();
 
