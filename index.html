@@ -124,6 +124,7 @@
   .spon-badge.lg img{max-width:140px}
   .spon-mark{width:30px;border-radius:50%;background:var(--gold-soft);color:var(--navy);
     font-size:11px;font-weight:800;letter-spacing:.02em}
+  .spon-text{font-family:var(--serif);font-size:16px;font-weight:600;color:var(--navy)}
   .cstate{font-size:12px;font-weight:700;letter-spacing:.08em}
   .cstate.open{color:var(--gold)}
   .cstate.done{color:var(--navy-soft)}
@@ -339,7 +340,8 @@ const SPONSORS = {
   sahosts:     { name:"SA Hosts",                         logo:ASSETS.logo_sahosts },
   zwashu:      { name:"Zwashu",                           logo:ASSETS.logo_zwashu },
   mokoena:     { name:"Mokoena Africa Group",             logo:ASSETS.logo_mokoena },
-  sapin:       { name:"SA Property Investors Network",    logo:ASSETS.logo_sapin }
+  sapin:       { name:"SA Property Investors Network",    logo:ASSETS.logo_sapin },
+  frameworkisd:{ name:"Framework ISD" }
 };
 const WINNERS = [{k:"robin",n:"Robin Booth",c:"Cape Town"},{k:"dana",n:"Dana Boonzaier",c:"Bloemfontein"},{k:"darren",n:"Darren Francis",c:"Cape Town"},{k:"patricia",n:"Patricia Tshitema",c:"Pretoria"}];
 
@@ -454,7 +456,7 @@ const CATEGORIES = [
   { id:"member",     name:"SAPIN Member of the Year",group:"Sub Categories", sponsors:["sapin"], finalists:["anastasia","jerome"] },
   // ----- MAIN CATEGORIES -----
   { id:"beginner",    name:"Beginner",     group:"Main Categories", finalists:["pieter","sphelele","amanda"] },
-  { id:"intermediate",name:"Intermediate", group:"Main Categories", finalists:["michael","miranda","robert","mojalefa"] },
+  { id:"intermediate",name:"Intermediate", group:"Main Categories", sponsors:["frameworkisd"], finalists:["michael","miranda","robert","mojalefa"] },
   { id:"bigleagues",  name:"Big Leagues",  group:"Main Categories", finalists:["jacques","frank"] }
 ];
 
@@ -966,7 +968,7 @@ function sponsorBadge(key){
   const s=SPONSORS[key]; if(!s) return "";
   const big=key==="tileafrica"?" lg":"";
   if(s.logo) return `<span class="spon-badge${big}"><img src="${s.logo}" alt="${escapeHtml(s.name)}"></span>`;
-  return `<span class="spon-badge spon-mark" title="${escapeHtml(s.name)}">${escapeHtml(sponsorInitials(s.name))}</span>`;
+  return `<span class="spon-text">${escapeHtml(s.name)}</span>`;
 }
 function sponsorBlock(c){
   if(!c.sponsors||!c.sponsors.length) return "";
