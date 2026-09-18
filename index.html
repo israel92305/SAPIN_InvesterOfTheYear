@@ -116,9 +116,12 @@
   .cathead h2{font-family:var(--serif);font-size:26px;font-weight:600;margin:0}
   .cathead .spon{font-size:12px;color:var(--navy-soft);letter-spacing:.02em}
   .cathead .spon b{color:var(--gold);font-weight:600}
-  .spon-wrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-6px 0 12px}
+  .spon-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-6px 0 12px}
+  .spon-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--navy-soft)}
   .spon-badge{display:inline-flex;align-items:center;justify-content:center;height:30px}
   .spon-badge img{height:100%;max-width:110px;object-fit:contain;display:block}
+  .spon-badge.lg{height:52px}
+  .spon-badge.lg img{max-width:140px}
   .spon-mark{width:30px;border-radius:50%;background:var(--gold-soft);color:var(--navy);
     font-size:11px;font-weight:800;letter-spacing:.02em}
   .cstate{font-size:12px;font-weight:700;letter-spacing:.08em}
@@ -961,12 +964,14 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":
 function sponsorInitials(name){ return name.split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase(); }
 function sponsorBadge(key){
   const s=SPONSORS[key]; if(!s) return "";
-  if(s.logo) return `<span class="spon-badge"><img src="${s.logo}" alt="${escapeHtml(s.name)}"></span>`;
+  const big=key==="tileafrica"?" lg":"";
+  if(s.logo) return `<span class="spon-badge${big}"><img src="${s.logo}" alt="${escapeHtml(s.name)}"></span>`;
   return `<span class="spon-badge spon-mark" title="${escapeHtml(s.name)}">${escapeHtml(sponsorInitials(s.name))}</span>`;
 }
 function sponsorBlock(c){
   if(!c.sponsors||!c.sponsors.length) return "";
-  return `<div class="spon-wrap">${c.sponsors.map(sponsorBadge).join("")}</div>`;
+  const badges=c.sponsors.map(sponsorBadge).join("");
+  return `<div class="spon-wrap"><span class="spon-label">Proudly sponsored by</span>${badges}</div>`;
 }
 
 /* ================================================================
